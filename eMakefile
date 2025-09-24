@@ -1,0 +1,58 @@
+# Compilatore C di Emscripten
+CC = emcc
+
+# Flag di compilazione
+CFLAGS = -O3 -W -Wall -Wextra -Wwrite-strings -Wshadow -fstrict-aliasing -Wstrict-aliasing=2
+
+# Flag per la fase di linking finale
+LINKFLAGS = -s WASM=1 \
+            -s ENVIRONMENT=node \
+            -s FORCE_FILESYSTEM=1 \
+            -s EXPORTED_RUNTIME_METHODS='["FS","callMain"]' \
+            -lnodefs.js
+
+# Nome del file JavaScript di output generato da Emscripten
+TARGET = 64tass.js
+
+# Elenco di tutti i file sorgente .c del progetto
+SOURCES = 64tass.c opcodes.c str.c avl.c my_getopt.c eval.c error.c section.c \
+ encoding.c ternary.c file.c values.c variables.c mem.c isnprintf.c macro.c \
+ obj.c floatobj.c addressobj.c codeobj.c strobj.c listobj.c boolobj.c bytesobj.c \
+ intobj.c bitsobj.c functionobj.c instruction.c unicode.c unicodedata.c listing.c \
+ registerobj.c dictobj.c namespaceobj.c operobj.c gapobj.c typeobj.c noneobj.c \
+ longjump.c wctype.c wchar.c math.c arguments.c optimizer.c opt_bit.c labelobj.c \
+ errorobj.c macroobj.c mfuncobj.c symbolobj.c anonsymbolobj.c memblocksobj.c \
+ foldobj.c main.c console.c encobj.c
+
+# Deriva automaticamente i nomi dei file oggetto (.o) dai file sorgente
+OBJECTS = $(SOURCES:.c=.o)
+
+# Regola di default: eseguita quando si lancia 'make' senza specificare un target
+.PHONY: all
+all: $(TARGET)
+
+# Regola di linking: unisce tutti i file oggetto per creare l'output finale
+$(TARGET): $(OBJECTS)
+	@echo "--- Linking finale: creazione di $(TARGET) e $(TARGET:.js=.wasm) ---"
+	$(CC) $(CFLAGS) $(OBJECTS) $(LINKFLAGS) -o $(TARGET)
+	@echo "--- Build completato con successo ---"
+
+# Regola di compilazione: come trasformare un singolo file .c in un .o
+%.o: %.c
+	@echo "Compilando $<..."
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Regola di pulizia: rimuove i file generati dalla compilazione
+.PHONY: clean
+clean:
+	@echo "--- Pulizia dei file generati... ---"
+	rm -f $(OBJECTS) $(TARGET) *.wasm
+
+# Regola di esecuzione: avvia il programma tramite il wrapper Node.js
+# NOTA: Assicurati di avere il file 'run.js' nella stessa cartella.
+# Puoi passare gli argomenti al programma modificando questa riga o da terminale.
+# Esempio da terminale: make run ARGS="-i file.in -o file.out"
+.PHONY: run
+run: $(TARGET)
+	@echo "--- Esecuzione del compilatore tramite Node.js wrapper ---"
+	node 64tass.js $(ARGS)
